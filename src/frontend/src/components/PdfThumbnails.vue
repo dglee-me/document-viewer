@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { type ComponentPublicInstance, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { pdfjsLib, type PDFDocumentProxy } from "@/lib/pdf";
 import {
     THUMBNAIL_RENDER_SCALE,
@@ -22,15 +22,23 @@ function isStale(version: number) {
 }
 
 function destroyCurrentDocument() {
-    const document = pdfDoc;
+    const doc = pdfDoc;
     pdfDoc = null;
-    if (document) void document.destroy();
+    if (doc) void doc.destroy();
 }
 
 function resetThumbnails() {
     totalPages.value = 0;
     thumbRefs.value = [];
     canvasRefs.value = [];
+}
+
+function setThumbRef(el: Element | ComponentPublicInstance | null, index: number) {
+    if (el) thumbRefs.value[index] = el as HTMLElement;
+}
+
+function setCanvasRef(el: Element | ComponentPublicInstance | null, index: number) {
+    if (el) canvasRefs.value[index] = el as HTMLCanvasElement;
 }
 
 async function loadThumbnails() {
@@ -84,7 +92,6 @@ async function loadThumbnails() {
     }
 }
 
-// 현재 페이지 썸네일로 스크롤
 watch(
     () => props.currentPage,
     (page) => {
@@ -115,21 +122,13 @@ onUnmounted(() => {
             <button
                 v-for="i in totalPages"
                 :key="i"
-                :ref="
-                    (el) => {
-                        if (el) thumbRefs[i - 1] = el as HTMLElement;
-                    }
-                "
+                :ref="(el) => setThumbRef(el, i - 1)"
                 class="flex flex-col items-center gap-1 rounded p-1 transition-colors hover:bg-muted/60 focus:outline-none"
                 :class="currentPage === i ? 'bg-muted ring-1 ring-primary' : ''"
                 @click="emit('navigate', i - 1)"
             >
                 <canvas
-                    :ref="
-                        (el) => {
-                            if (el) canvasRefs[i - 1] = el as HTMLCanvasElement;
-                        }
-                    "
+                    :ref="(el) => setCanvasRef(el, i - 1)"
                     class="w-full rounded shadow-sm border block"
                 />
                 <span class="text-[10px] text-muted-foreground tabular-nums">{{ i }}</span>

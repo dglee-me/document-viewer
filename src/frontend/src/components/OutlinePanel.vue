@@ -19,8 +19,8 @@ export interface OutlineItem {
 }
 
 defineOptions({ name: "OutlinePanel" });
+defineProps<{ items: OutlineItem[]; isRoot?: boolean }>();
 
-defineProps<{ items: OutlineItem[]; depth?: number }>();
 const emit = defineEmits<{ navigate: [dest: string | unknown[] | null] }>();
 
 function itemClass(item: OutlineItem) {
@@ -33,7 +33,7 @@ function navigate(dest: string | unknown[] | null) {
 </script>
 
 <template>
-    <SidebarMenu v-if="!depth">
+    <SidebarMenu v-if="isRoot !== false">
         <SidebarMenuItem v-for="(item, i) in items" :key="i">
             <Collapsible v-if="item.items.length" class="group/collapsible">
                 <CollapsibleTrigger as-child>
@@ -51,7 +51,7 @@ function navigate(dest: string | unknown[] | null) {
 
                 <CollapsibleContent>
                     <SidebarMenuSub>
-                        <OutlinePanel :items="item.items" :depth="1" @navigate="navigate" />
+                        <OutlinePanel :items="item.items" :is-root="false" @navigate="navigate" />
                     </SidebarMenuSub>
                 </CollapsibleContent>
             </Collapsible>
@@ -81,11 +81,7 @@ function navigate(dest: string | unknown[] | null) {
 
                 <CollapsibleContent>
                     <SidebarMenuSub>
-                        <OutlinePanel
-                            :items="item.items"
-                            :depth="(depth ?? 1) + 1"
-                            @navigate="navigate"
-                        />
+                        <OutlinePanel :items="item.items" :is-root="false" @navigate="navigate" />
                     </SidebarMenuSub>
                 </CollapsibleContent>
             </Collapsible>
