@@ -7,10 +7,12 @@ import kr.co.dglee.document.dto.DocumentResponse;
 import kr.co.dglee.document.repository.DocumentRepository;
 import kr.co.dglee.document.storage.DocumentTypeDetector;
 import kr.co.dglee.document.storage.FileStorage;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -88,7 +90,7 @@ public class DocumentService {
                 return new DocumentFile(document.getOriginalFilename(), resource, resource.contentLength());
             }
 
-            String cacheKey = id + "_outlined_" + Integer.toHexString(watermarkText.hashCode());
+            String cacheKey = id + "_text_v2_" + Integer.toHexString(watermarkText.hashCode());
             Optional<Path> cached = watermarkedFileCache.get(cacheKey);
             if (cached.isPresent()) {
                 Resource resource = new UrlResource(cached.get().toUri());

@@ -1,24 +1,26 @@
 package kr.co.dglee.document.service;
 
-import java.awt.Shape;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.GeneralPath;
-import java.awt.geom.PathIterator;
 import java.io.ByteArrayOutputStream;
-import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.PDPageContentStream.AppendMode;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState;
 import org.apache.pdfbox.util.Matrix;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -30,11 +32,14 @@ public class PdfWatermarkService {
     private static final float TILE_GAP_X = 140f;
     private static final float TILE_GAP_Y = 110f;
     private static final float ANGLE_RAD = (float) Math.toRadians(35);
-    private static final float FONT_SCALE = FONT_SIZE / 1000f;
+    private static final String DEFAULT_MAC_UNICODE_FONT = "/Library/Fonts/Arial Unicode.ttf";
+
+    @Value("${app.watermark.font-path:}")
+    private String watermarkFontPath;
 
     public byte[] apply(byte[] pdfBytes, String text) throws IOException {
         try (PDDocument doc = Loader.loadPDF(pdfBytes)) {
-            PDType1Font font = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
+            PDFont font = loadWatermarkFont(doc);
             float textWidth = font.getStringWidth(text) / 1000f * FONT_SIZE;
 
             PDExtendedGraphicsState gs = new PDExtendedGraphicsState();
@@ -59,7 +64,7 @@ public class PdfWatermarkService {
                     // 회전된 좌표계에서 수평 격자로 배치 → 실제로는 대각선 타일링
                     for (float y = -diagonal; y <= diagonal; y += TILE_GAP_Y) {
                         for (float x = -diagonal; x <= diagonal; x += TILE_GAP_X + textWidth) {
-                            drawOutlinedText(cs, font, text, x, y);
+                            drawText(cs, font, text, x, y);
                         }
                     }
                     cs.restoreGraphicsState();
@@ -72,41 +77,29 @@ public class PdfWatermarkService {
         }
     }
 
-    private void drawOutlinedText(PDPageContentStream cs, PDType1Font font, String text, float x, float y)
-            throws IOException {
-        float cursor = 0f;
-        ByteArrayInputStream codes = new ByteArrayInputStream(font.encode(text));
-
-        while (codes.available() > 0) {
-            int code = font.readCode(codes);
-            GeneralPath glyph = font.getPath(code);
-            AffineTransform transform = new AffineTransform();
-            transform.translate(x + cursor, y);
-            transform.scale(FONT_SCALE, FONT_SCALE);
-            appendPath(cs, transform.createTransformedShape(glyph));
-            cursor += font.getWidth(code) * FONT_SCALE;
+    private PDFont loadWatermarkFont(PDDocument doc) throws IOException {
+        Path configured = watermarkFontPath == null || watermarkFontPath.isBlank()
+                ? null
+                : Path.of(watermarkFontPath);
+        if (configured != null && Files.isRegularFile(configured)) {
+            return PDType0Font.load(doc, configured.toFile());
         }
-        cs.fill();
+
+        File defaultFont = new File(DEFAULT_MAC_UNICODE_FONT);
+        if (defaultFont.isFile()) {
+            return PDType0Font.load(doc, defaultFont);
+        }
+
+        return new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
     }
 
-    private void appendPath(PDPageContentStream cs, Shape shape) throws IOException {
-        float[] coords = new float[6];
-        PathIterator iterator = shape.getPathIterator(null);
-
-        while (!iterator.isDone()) {
-            switch (iterator.currentSegment(coords)) {
-                case PathIterator.SEG_MOVETO -> cs.moveTo(coords[0], coords[1]);
-                case PathIterator.SEG_LINETO -> cs.lineTo(coords[0], coords[1]);
-                case PathIterator.SEG_CUBICTO -> cs.curveTo(
-                        coords[0], coords[1],
-                        coords[2], coords[3],
-                        coords[4], coords[5]);
-                case PathIterator.SEG_CLOSE -> cs.closePath();
-                default -> {
-                    // Type 1 glyphs are cubic paths; quadratic segments are not expected.
-                }
-            }
-            iterator.next();
-        }
+    private void drawText(PDPageContentStream cs, PDFont font, String text, float x, float y) throws IOException {
+        cs.beginMarkedContent(COSName.ARTIFACT);
+        cs.beginText();
+        cs.setFont(font, FONT_SIZE);
+        cs.setTextMatrix(Matrix.getTranslateInstance(x, y));
+        cs.showText(text);
+        cs.endText();
+        cs.endMarkedContent();
     }
 }
