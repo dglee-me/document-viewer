@@ -88,7 +88,7 @@ public class DocumentService {
                 return new DocumentFile(document.getOriginalFilename(), resource, resource.contentLength());
             }
 
-            String cacheKey = id + "_" + Integer.toHexString(watermarkText.hashCode());
+            String cacheKey = id + "_outlined_" + Integer.toHexString(watermarkText.hashCode());
             Optional<Path> cached = watermarkedFileCache.get(cacheKey);
             if (cached.isPresent()) {
                 Resource resource = new UrlResource(cached.get().toUri());
