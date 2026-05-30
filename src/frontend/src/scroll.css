@@ -1,0 +1,33 @@
+@layer base {
+    /* webkit 스크롤바 */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        @apply bg-border rounded-full;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        @apply bg-muted-foreground/40;
+    }
+
+    ::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+
+    /* Firefox */
+    * {
+        scrollbar-width: auto;
+        scrollbar-color: oklch(0.922 0 0) transparent;
+    }
+
+    .dark * {
+        scrollbar-color: oklch(1 0 0 / 10%) transparent;
+    }
+}
